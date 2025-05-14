@@ -37,7 +37,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Credenziali errate' });
     }
 
-    const token = jwt.sign({userId: user._id,  username: user.username, role: user.role },  
+    const token = jwt.sign({userId: user._id,  username: user.username, role: user.role, isDriver: user.isDriver },  
                             process.env.JWT_SECRET, 
                            {expiresIn: '1h'}
                             );

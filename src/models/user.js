@@ -4,7 +4,12 @@ const bcrypt = require('bcrypt');
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, default: 'user', },//o admin boh
+  name: { type: String/*, required: true*/ },
+  role: { type: String, default: 'user' },//o admin boh
+  phone: {type: String },
+  rating: { type: Number, default: 5 },
+  isDriver: { type: Boolean, default: true }, //true solo per provare, default false
+  vehicle: { type: String }
 });
 
 userSchema.methods.comparePassword = function (password) {

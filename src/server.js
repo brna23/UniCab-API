@@ -8,12 +8,33 @@ const path = require('path');
 const authRoutes = require('./routes/auth.js');
 const homeRoutes = require('./routes/home.js');
 const authMiddleware = require('./middleware/authmw');
+const rideRoutes = require('./routes/api/rides');
+
+//Swagger API documentation
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+const options = {
+  failOnErrors: true, // Whether or not to throw when parsing errors. Defaults to false.
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Hello World',
+      version: '1.0.0',
+    },
+  },
+  apis: ['./routes/api/rides.js', './server.js'],
+};
+const swaggerSpec = swaggerJsdoc(options);
+
 
 // Carica le variabili d'ambiente
 dotenv.config({path:'../.env'});
 
 // Crea l'app Express
 const app = express();
+
+//pagina swagger
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Middleware
 app.use(cors()); // Abilita CORS
@@ -48,6 +69,7 @@ app.get('/register', (req, res) => {
 // route protette 
 app.use('/api/auth', authRoutes);
 app.use('/api', homeRoutes);
+app.use('/api/rides', rideRoutes);
 
 
 
