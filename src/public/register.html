@@ -39,9 +39,9 @@
       if (data.token) {
         localStorage.setItem('token', data.token); 
         alert('Registrazione avvenuta con successo!');
-        window.location.href = '/dashboard.html'; 
+        window.location.href = '/home.html'; 
       } else {
-        alert('Errore nella registrazione: ' + data.message);
+        alert(data.message);
       }
     });
   </script>

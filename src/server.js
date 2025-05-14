@@ -6,7 +6,7 @@ const cors = require('cors');
 const path = require('path');
 //per login
 const authRoutes = require('./routes/auth.js');
-const dashboardRoutes = require('./routes/dashboard.js');
+const homeRoutes = require('./routes/home.js');
 const authMiddleware = require('./middleware/authmw');
 
 // Carica le variabili d'ambiente
@@ -45,9 +45,9 @@ app.get('/register', (req, res) => {
 });
 
 
-// route protette (devono usare authMiddleware)
+// route protette 
 app.use('/api/auth', authRoutes);
-app.use('/api', dashboardRoutes);
+app.use('/api', homeRoutes);
 
 
 

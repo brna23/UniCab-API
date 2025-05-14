@@ -3,8 +3,8 @@ const authMiddleware = require('../middleware/authmw');
 const router = express.Router();
 const User = require('../models/user');
 
-// rotta protetta: /dashboard
-router.get('/dashboard', authMiddleware, async (req, res) => {
+// rotta protetta: /home
+router.get('/home', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('username');
     res.json({ message: `Benvenuto, ${user.username}` });
