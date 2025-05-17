@@ -7,6 +7,7 @@ const path = require('path');
 //per login
 const authRoutes = require('./routes/auth.js');
 const homeRoutes = require('./routes/home.js');
+const adminRoutes = require('./routes/admin.js');
 const authMiddleware = require('./middleware/authmw');
 
 // Carica le variabili d'ambiente
