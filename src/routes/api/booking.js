@@ -3,6 +3,7 @@ const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
+const partecipants = require('../../models/partecipants');
 
 /**
  * @openapi
@@ -39,7 +40,9 @@ const validateObjectId = require('../../middleware/validateObjectId');
  *         description: Invalid input or full
  */
 router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) => {
+  console.log(req.body)
   const { seats, participants } = req.body;
+  
   try {
     const ride = await Ride.findById(req.params.id);
     if (!ride) return res.status(404).json({ error: 'Ride not found' });
@@ -57,11 +60,12 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
     if (totalBookedSeats + seats > ride.availableSeats) {
       return res.status(400).json({ error: 'Not enough available seats' });
     }
-
+    console.log('aaa')
     const newBooking = {
       userId: req.user.userId,
       seats,
-      participants: (participants || []).map(id => ({ userId: id }))
+      //participants: (participants || []).map(id => ({ userId: id }))
+      participants: participants
     };
 
     ride.bookings.push(newBooking);

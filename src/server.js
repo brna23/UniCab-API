@@ -9,7 +9,7 @@ const authRoutes = require('./routes/auth.js');
 const homeRoutes = require('./routes/home.js');
 const authMiddleware = require('./middleware/authmw');
 const rideRoutes = require('./routes/api/rides');
-const bookingRoutes = require('./routes/api/bookings'); //forse conviene usare sempre /rides come path
+const bookingRoutes = require('./routes/api/booking'); //forse conviene usare sempre /rides come path
 
 //Swagger API documentation
 const swaggerUi = require('swagger-ui-express');
