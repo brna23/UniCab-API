@@ -3,7 +3,6 @@ const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
-const swagger = require('../../../swagger-definitions');
 
 /**
  * @openapi
@@ -42,13 +41,7 @@ const swagger = require('../../../swagger-definitions');
  *         description: Ordinamento risultati
  *     responses:
  *       200:
- *         description: Lista di viaggi
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Ride'
+ *         description: Lista di viaggi con o senza parametri di ricerca
  *       500:
  *         description: Errore server
  */
@@ -59,7 +52,6 @@ router.get('/', async (req, res) => {
   try {
     // Filtro base: solo viaggi con status 'pending' (disponibili)
     let query = { status: 'pending' };
-    
     // Aggiungi filtri dalla query string se presenti
     if (req.query.from) {
       query['startPoint.address'] = new RegExp(req.query.from, 'i');
@@ -93,10 +85,11 @@ router.get('/', async (req, res) => {
       sort.departureTime = 1; // Default: ordine crescente per data
     }
     
+    console.log(query)
     // Popola le informazioni del driver
     const rides = await Ride.find(query)
       .sort(sort)
-      .populate('driver', 'name rating avatar')
+      .populate('driver', 'rating')
       .lean();
     
     res.json(rides);
@@ -123,10 +116,6 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Dettaglio viaggio
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Ride'
  *       404:
  *         description: Viaggio non trovato
  *       500:
@@ -204,10 +193,6 @@ router.get('/:id', validateObjectId, async (req, res) => {
  *     responses:
  *       201:
  *         description: Viaggio creato con successo
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#components/schemas/Ride'
  *       400:
  *         description: Richiesta non valida
  *         content:
@@ -320,10 +305,6 @@ router.post('/', authMiddleware, async (req, res) => {
  *     responses:
  *       200:
  *         description: Viaggio aggiornato
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Ride'
  *       400:
  *         description: Richiesta non valida
  *       403:
@@ -376,6 +357,34 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/rides/{id}:
+ *   delete:
+ *     summary: Cancella un viaggio
+ *     description: Permette al driver di cancellare un viaggio
+ *     tags: [Rides]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del viaggio
+ *     responses:
+ *       200:
+ *         description: Viaggio cancellato con successo
+ *       400:
+ *         description: Richiesta non valida
+ *       403:
+ *         description: Non autorizzato (solo il driver può cancellare)
+ *       404:
+ *         description: Viaggio non trovato
+ *       500:
+ *         description: Errore server
+ */
 // @route   DELETE api/rides/:id
 // @desc    Delete a ride
 // @access  Private (solo il creatore del viaggio)

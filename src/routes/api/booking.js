@@ -9,9 +9,11 @@ const partecipants = require('../../models/partecipants');
  * @openapi
  * /api/bookings/{id}/book:
  *   post:
- *     summary: Book a ride (single or multiple seats)
+ *     summary: Prenota una corsa (singola o multipla)
  *     tags:
  *       - Bookings
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -82,9 +84,11 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
  * @openapi
  * /api/bookings/{id}/confirm:
  *   post:
- *     summary: Confirm participation as invited passenger
+ *     summary: Conferma prenotazione a cui sei stato invitato
  *     tags:
  *       - Bookings
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

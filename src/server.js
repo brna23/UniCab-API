@@ -24,7 +24,8 @@ const options = {
       version: '1.0.0',
     },
   },
-  apis: ['./routes/api/rides.js', './server.js'],
+  apis: ['./routes/api/rides.js', './server.js', './routes/api/booking.js', './routes/auth.js'],
+  //apis: ['../routes/*.js'],
 };
 const swaggerSpec = swaggerJsdoc(options);
 
