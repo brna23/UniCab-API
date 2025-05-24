@@ -4,7 +4,7 @@ const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
 const partecipants = require('../../models/partecipants');
-
+const Prenotazione = require('../../models/booking');
 /**
  * @openapi
  * /api/bookings/{id}/book:
@@ -40,11 +40,10 @@ const partecipants = require('../../models/partecipants');
  *         description: Invalid input or full
  */
 router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) => {
-  console.log(req.body)
   const { seats, participants } = req.body;
   
   try {
-    const ride = await Ride.findById(req.params.id);
+    const ride = await Ride.findById(req.params.id).populate('bookings');
     if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
     if (ride.driver.toString() === req.user.userId) {
@@ -60,18 +59,23 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
     if (totalBookedSeats + seats > ride.availableSeats) {
       return res.status(400).json({ error: 'Not enough available seats' });
     }
-    console.log('aaa')
-    const newBooking = {
+
+    //CREA prima la prenotazione
+    const newBooking = new Prenotazione({
       userId: req.user.userId,
       seats,
-      //participants: (participants || []).map(id => ({ userId: id }))
-      participants: participants
-    };
+      participants: participants || []
+    });
 
-    ride.bookings.push(newBooking);
+    const savedBooking = await newBooking.save();
+
+    //ora salva l id di questa prenotazione nel viaggio
+    ride.bookings.push(savedBooking._id);
     await ride.save();
-
-    res.status(201).json({ message: 'Booking successful. Waiting for participants to confirm.' });
+    res.status(201).json({ 
+    message: 'Booking successful. Waiting for participants to confirm.',
+    bookingId: savedBooking._id 
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Server error' });
@@ -123,5 +127,32 @@ router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res)
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+//manca commentone
+router.get('/:id', [authMiddleware, validateObjectId], async (req, res) => {
+  const bookingId = req.params.id;
+  //console.log(bookingId);
+
+  try {
+    const booking = await Prenotazione.findById(bookingId)
+      .populate('userId', 'username phone')
+      .populate('participants.userId', 'name email avatar')
+      .lean();
+
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+
+    if (booking.userId._id.toString() !== req.user.userId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.json(booking);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 module.exports = router;
