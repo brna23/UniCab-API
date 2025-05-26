@@ -163,9 +163,9 @@ router.get('/', async (req, res) => {
 router.get('/:id', validateObjectId, async (req, res) => {
   try {
     const ride = await Ride.findById(req.params.id)
-      .populate('driver', 'name rating avatar phone')
-      .populate('passengers', 'name avatar');
-      // .populate('bookings.userId', 'bookings.seats'); 
+      .populate('driver', 'name rating phone')
+      .populate('passengers', 'name')
+      .populate('bookings', 'seats'); 
     
     if (!ride) {
       return res.status(404).json({ error: 'Ride not found' });
