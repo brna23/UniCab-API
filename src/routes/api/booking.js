@@ -3,7 +3,6 @@ const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
-const partecipants = require('../../models/partecipants');
 const Prenotazione = require('../../models/booking');
 /**
  * @openapi
@@ -60,11 +59,19 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
       return res.status(400).json({ error: 'Not enough available seats' });
     }
 
+    const allParticipants = [
+      {
+        userId: req.user.userId,
+        confirmed: false
+      },
+      ...participants
+    ];
+
     //CREA prima la prenotazione
     const newBooking = new Prenotazione({
       userId: req.user.userId,
       seats,
-      participants: participants || []
+      participants: allParticipants
     });
 
     const savedBooking = await newBooking.save();
@@ -104,22 +111,32 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
  */
 router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res) => {
   try {
-    const ride = await Ride.findById(req.params.id);
+    const ride = await Ride.findById(req.params.id).populate({
+    path: 'bookings',
+    populate: { path: 'participants' } 
+    });
     if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
     let found = false;
+    let userBooking = null;
 
-    ride.bookings.forEach(booking => {
-      booking.participants.forEach(participant => {
+    for (const booking of ride.bookings) {
+      for (const participant of booking.participants) {
         if (participant.userId.toString() === req.user.userId) {
           participant.confirmed = true;
           found = true;
+          userBooking = booking;
+          await participant.save(); //riscritto con for sennò non mi lascia fare await
         }
-      });
-    });
+      }
+    }
 
     if (!found) return res.status(403).json({ error: 'You were not invited to this ride' });
 
+    if (userBooking) {
+      ride.availableSeats -= userBooking.seats;
+    }
+    await userBooking.save();
     await ride.save();
     res.status(200).json({ message: 'Participation confirmed' });
   } catch (err) {

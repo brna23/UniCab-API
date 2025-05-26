@@ -4,7 +4,6 @@ const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
 const swagger = require('../../../swagger-definitions');
-const partecipants = require('../../models/partecipants');
 const Prenotazione = require('../../models/booking');
 
 router.get('/my-bookings', [authMiddleware], async (req, res) => {
