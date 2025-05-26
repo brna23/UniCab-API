@@ -171,5 +171,32 @@ router.get('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   }
 });
 
+router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+    const userId = req.user.userId;
+
+    const booking = await Prenotazione.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: 'Prenotazione non trovata' });
+    if (booking.userId.toString() !== userId) {
+      return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
+    }
+
+    const ride = await Ride.findOne({ bookings: bookingId });
+    if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
+
+    ride.bookings = ride.bookings.filter(bId => bId.toString() !== bookingId);
+    ride.availableSeats += booking.seats;
+
+    await ride.save();
+
+    await Prenotazione.findByIdAndDelete(bookingId);
+
+    res.status(200).json({ message: 'Prenotazione cancellata con successo' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Errore del server' });
+  }
+});
 
 module.exports = router;
