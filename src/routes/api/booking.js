@@ -29,6 +29,47 @@ router.get('/my-bookings', [authMiddleware], async (req, res) => {
   }
 });
 
+//per modificare prenotazione
+router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
+  const bookingId = req.params.id;
+  const { seats, participants } = req.body;
+
+  try {
+    const booking = await Prenotazione.findById(bookingId).populate('ride');
+    if (!booking) return res.status(404).json({ error: 'Prenotazione non trovata' });
+
+    if (booking.userId.toString() !== req.user.userId)
+      return res.status(403).json({ error: 'Non autorizzato a modificare questa prenotazione' });
+
+    const oldSeats = booking.seats;
+    const newSeats = seats !== undefined ? seats : oldSeats;
+    const seatDiff = newSeats - oldSeats;
+
+    if (seatDiff > 0 && booking.ride && seatDiff > booking.ride.availableSeats) {
+      return res.status(400).json({
+        error: `Solo ${booking.ride.availableSeats} posti disponibili. Non puoi richiedere ${seatDiff} posti aggiuntivi.`
+      });
+    }
+  
+    booking.seats = newSeats;
+    if (Array.isArray(participants)) booking.participants = participants;
+
+    if (booking.ride) {
+      booking.ride.availableSeats -= seatDiff;
+      await booking.ride.save();
+    }
+
+    await booking.save();
+    res.json({ message: 'Prenotazione aggiornata con successo', booking });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore server' });
+  }
+});
+
+
+
 /**
  * @openapi
  * /api/bookings/{id}/book:
@@ -96,7 +137,8 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
     const newBooking = new Prenotazione({
       userId: req.user.userId,
       seats,
-      participants: allParticipants
+      participants: allParticipants,
+      ride: ride._id
     });
 
     const savedBooking = await newBooking.save();
@@ -211,7 +253,10 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
 
     ride.bookings = ride.bookings.filter(bId => bId.toString() !== bookingId);
-    ride.availableSeats += booking.seats;
+
+    if (booking.participants.some(p => p.confirmed)) {
+      ride.availableSeats += booking.seats;
+    }
 
     await ride.save();
 
