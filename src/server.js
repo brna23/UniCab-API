@@ -32,11 +32,17 @@ const swaggerSpec = swaggerJsdoc(options);
 // Carica le variabili d'ambiente
 dotenv.config({path:'../.env'});
 
+//oauth
+const passport = require('./config/passport');
+
 // Crea l'app Express
 const app = express();
 
 //pagina swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+//oauth
+app.use(passport.initialize());
 
 // Middleware
 app.use(cors()); // Abilita CORS

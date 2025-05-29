@@ -2,19 +2,46 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const passport = require('passport');
 
 const router = express.Router();
 
+
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+//login oauth
+router.get('/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  (req, res) => {
+    const token = jwt.sign({
+      userId: req.user._id,
+      username: req.user.username,
+      role: req.user.role,
+      isDriver: req.user.isDriver
+    }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.redirect(`http://localhost:5173/auth-success?token=${token}`);
+  }
+);
+
+//registrazione aggiornata
 router.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, email, isDriver, driverLicense } = req.body;
 
   try {
+    if (!email) {
+      return res.status(400).json({ message: 'Email obbligatoria' });
+    }
+
+    if (isDriver && !driverLicense) {
+      return res.status(400).json({ message: 'La patente è obbligatoria per registrarsi come autista' });
+    }
+
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ message: 'Username già esistente' });
     }
 
-    const newUser = new User({ username, password });
+    const newUser = new User({ username, email, password, isDriver, driverLicense });
     await newUser.save();
     res.status(201).json({ message: 'Registrazione completata' });
   } catch (error) {
@@ -23,6 +50,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
+//login manuale
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
