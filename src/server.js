@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const fs = require('fs');
 //const { path } = require('express/lib/application');
 const path = require('path');
 //per login
@@ -26,9 +27,10 @@ const options = {
   },
   apis: ['./routes/api/rides.js', './server.js', './routes/api/booking.js', './routes/auth.js'],
   //apis: ['../routes/*.js'],
+  
 };
 const swaggerSpec = swaggerJsdoc(options);
-
+fs.writeFileSync('../swagger.json', JSON.stringify(swaggerSpec, null, 2));
 
 // Carica le variabili d'ambiente
 dotenv.config({path:'../.env'});
