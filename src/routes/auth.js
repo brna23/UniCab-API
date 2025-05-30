@@ -60,6 +60,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Credenziali errate' });
     }
 
+     if (user.status === 'suspended') {
+      return res.status(403).json({ message: 'Account sospeso' });
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Credenziali errate' });
