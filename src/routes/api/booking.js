@@ -29,6 +29,29 @@ router.get('/my-bookings', [authMiddleware], async (req, res) => {
   }
 });
 
+
+//per ottenere tutte prenotazioni da un viaggio rideId
+router.get('/by-ride/:id', [authMiddleware, validateObjectId], async (req, res) => {
+  const  rideId = req.params.id;
+  console.log('req.user:', req.user);
+
+  try {
+    const ride = await Ride.findById(rideId);
+    if (!ride) return res.status(404).json({ message: 'Viaggio non trovato' });
+
+    if (ride.driver.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({ message: 'Non sei autorizzato a visualizzare queste prenotazioni' });
+    }
+
+    const bookings = await Prenotazione.find({ ride: rideId }).populate('userId', 'name email');
+
+    res.json(bookings);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Errore del server' });
+  }
+});
+
 //per modificare prenotazione
 router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   const bookingId = req.params.id;
@@ -67,7 +90,6 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     res.status(500).json({ error: 'Errore server' });
   }
 });
-
 
 
 /**
@@ -212,6 +234,7 @@ router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res)
   }
 });
 
+
 //manca commentone
 router.get('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   const bookingId = req.params.id;
@@ -245,12 +268,14 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
 
     const booking = await Prenotazione.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Prenotazione non trovata' });
-    if (booking.userId.toString() !== userId) {
-      return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
-    }
 
     const ride = await Ride.findOne({ bookings: bookingId });
     if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
+
+
+    if (booking.userId.toString() !== userId && ride.driver.toString() !== userId) {
+      return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
+    }
 
     ride.bookings = ride.bookings.filter(bId => bId.toString() !== bookingId);
 
