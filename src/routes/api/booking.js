@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
+const Notification = require('../../models/notifica'); 
 const validateObjectId = require('../../middleware/validateObjectId');
 const Prenotazione = require('../../models/booking');
 
@@ -291,6 +292,16 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     await ride.save();
 
     await Prenotazione.findByIdAndDelete(bookingId);
+
+    await Notification.create({
+      userId: booking.userId,
+      message: `La tua prenotazione per il viaggio da ${ride.startPoint.address} a ${ride.endPoint.address} è stata rifiutata dall'autista.`,
+      type: 'booking_rejected',
+      data: {
+        rideId: ride._id.toString(),
+        bookingId: booking._id.toString()
+      }
+    });
 
     res.status(200).json({ message: 'Prenotazione cancellata con successo' });
   } catch (err) {
