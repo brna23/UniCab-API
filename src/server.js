@@ -7,6 +7,7 @@ const path = require('path');
 //per login
 const authRoutes = require('./routes/auth.js');
 const homeRoutes = require('./routes/home.js');
+const adminRoutes = require('./routes/admin.js');
 const authMiddleware = require('./middleware/authmw');
 const rideRoutes = require('./routes/api/rides');
 const bookingRoutes = require('./routes/api/booking'); //forse conviene usare sempre /rides come path
@@ -31,11 +32,17 @@ const swaggerSpec = swaggerJsdoc(options);
 // Carica le variabili d'ambiente
 dotenv.config({path:'../.env'});
 
+//oauth
+const passport = require('./config/passport');
+
 // Crea l'app Express
 const app = express();
 
 //pagina swagger
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+//oauth
+app.use(passport.initialize());
 
 // Middleware
 app.use(cors()); // Abilita CORS

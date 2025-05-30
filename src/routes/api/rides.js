@@ -4,6 +4,28 @@ const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
 const swagger = require('../../../swagger-definitions');
+const Prenotazione = require('../../models/booking');
+
+router.get('/my-rides', [authMiddleware], async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    const rides = await Ride.find({ driver: userId })
+      .populate({
+        path: 'bookings',
+        match: { userId: userId }, //mostra solo i tuoi viaggi
+        populate: { path: 'userId', select: 'username name' }
+      })
+      .populate('driver', 'name rating avatar')
+      .lean();
+
+    res.json(rides);
+  } catch (error) {
+    console.error('Errore nel recupero dei viaggi come autista:', error);
+    res.status(500).json({ error: 'Errore del server' });
+  }
+});
+
 
 /**
  * @openapi
@@ -138,8 +160,9 @@ router.get('/', async (req, res) => {
 router.get('/:id', validateObjectId, async (req, res) => {
   try {
     const ride = await Ride.findById(req.params.id)
-      .populate('driver', 'name rating avatar phone')
-      .populate('passengers', 'name avatar');
+      .populate('driver', 'name rating phone')
+      .populate('passengers', 'name')
+      .populate('bookings', 'seats'); 
     
     if (!ride) {
       return res.status(404).json({ error: 'Ride not found' });

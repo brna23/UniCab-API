@@ -3,7 +3,6 @@ const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
-const partecipants = require('../../models/partecipants');
 const Prenotazione = require('../../models/booking');
 
 
@@ -29,6 +28,7 @@ router.get('/my-bookings', [authMiddleware], async (req, res) => {
     res.status(500).json({ error: 'Errore del server' });
   }
 });
+
 
 //per ottenere tutte prenotazioni da un viaggio rideId
 router.get('/by-ride/:id', [authMiddleware, validateObjectId], async (req, res) => {
@@ -127,11 +127,10 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
  *         description: Invalid input or full
  */
 router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) => {
-  console.log(req.body)
   const { seats, participants } = req.body;
   
   try {
-    const ride = await Ride.findById(req.params.id);
+    const ride = await Ride.findById(req.params.id).populate('bookings');
     if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
     if (ride.driver.toString() === req.user.userId) {
@@ -147,18 +146,32 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
     if (totalBookedSeats + seats > ride.availableSeats) {
       return res.status(400).json({ error: 'Not enough available seats' });
     }
-    console.log('aaa')
-    const newBooking = {
+
+    const allParticipants = [
+      {
+        userId: req.user.userId,
+        confirmed: false
+      },
+      ...participants
+    ];
+
+    //CREA prima la prenotazione
+    const newBooking = new Prenotazione({
       userId: req.user.userId,
       seats,
-      //participants: (participants || []).map(id => ({ userId: id }))
-      participants: participants
-    };
+      participants: allParticipants,
+      ride: ride._id
+    });
 
-    ride.bookings.push(newBooking);
+    const savedBooking = await newBooking.save();
+
+    //ora salva l id di questa prenotazione nel viaggio
+    ride.bookings.push(savedBooking._id);
     await ride.save();
-
-    res.status(201).json({ message: 'Booking successful. Waiting for participants to confirm.' });
+    res.status(201).json({ 
+    message: 'Booking successful. Waiting for participants to confirm.',
+    bookingId: savedBooking._id 
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Server error' });
@@ -187,22 +200,32 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
  */
 router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res) => {
   try {
-    const ride = await Ride.findById(req.params.id);
+    const ride = await Ride.findById(req.params.id).populate({
+    path: 'bookings',
+    populate: { path: 'participants' } 
+    });
     if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
     let found = false;
+    let userBooking = null;
 
-    ride.bookings.forEach(booking => {
-      booking.participants.forEach(participant => {
+    for (const booking of ride.bookings) {
+      for (const participant of booking.participants) {
         if (participant.userId.toString() === req.user.userId) {
           participant.confirmed = true;
           found = true;
+          userBooking = booking;
+          await participant.save(); //riscritto con for sennò non mi lascia fare await
         }
-      });
-    });
+      }
+    }
 
     if (!found) return res.status(403).json({ error: 'You were not invited to this ride' });
 
+    if (userBooking) {
+      ride.availableSeats -= userBooking.seats;
+    }
+    await userBooking.save();
     await ride.save();
     res.status(200).json({ message: 'Participation confirmed' });
   } catch (err) {
@@ -249,7 +272,7 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     const ride = await Ride.findOne({ bookings: bookingId });
     if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
 
-    //driver o prenotante possono cancellare
+
     if (booking.userId.toString() !== userId && ride.driver.toString() !== userId) {
       return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
     }

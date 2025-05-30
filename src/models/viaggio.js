@@ -15,7 +15,7 @@ const rideSchema = new mongoose.Schema({
   availableSeats: { type: Number, required: true },
   price: { type: Number, required: true },
   status: { type: String, enum: ['pending', 'active', 'completed', 'cancelled'], default: 'pending' },
-  bookings: ['Prenotazione']
+  bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Prenotazione' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Viaggio', rideSchema);
