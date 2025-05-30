@@ -245,12 +245,14 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
 
     const booking = await Prenotazione.findById(bookingId);
     if (!booking) return res.status(404).json({ error: 'Prenotazione non trovata' });
-    if (booking.userId.toString() !== userId) {
-      return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
-    }
 
     const ride = await Ride.findOne({ bookings: bookingId });
     if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
+
+    //driver o prenotante possono cancellare
+    if (booking.userId.toString() !== userId && ride.driver.toString() !== userId) {
+      return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
+    }
 
     ride.bookings = ride.bookings.filter(bId => bId.toString() !== bookingId);
 
