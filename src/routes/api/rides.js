@@ -372,7 +372,10 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     if (ride.driver.toString() !== req.user.userId.toString()) {
       return res.status(403).json({ error: 'Not authorized to update this ride' });
     }
-    
+
+    const oldStartAddress  = ride.startPoint.address;
+    const oldEndAddress  = ride.endPoint.address;
+
     // Aggiorna solo i campi forniti
     const updates = {
       startPoint: {
@@ -391,6 +394,18 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     };
     
     Object.assign(ride, updates);
+
+    const bookings = await Prenotazione.find({ ride: ride._id });
+    if (bookings.length > 0) {
+        const notifications = bookings.map(booking => ({
+          userId: booking.userId,
+          title: 'Viaggio modificato',
+          message: `Il viaggio da ${oldStartAddress} a ${oldEndAddress} è stato modificato:\nDa ${ride.startPoint.address} a ${ride.endPoint.address}.`,
+        }));
+       
+    await Notification.insertMany(notifications);
+    }  
+
     await ride.save();
     
     res.json(ride);
@@ -419,10 +434,8 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     
     const bookings = await Prenotazione.find({ ride: ride._id });
     if (bookings.length > 0) {
-      console.log('Prenotazioni trovate:', bookings.length);
-      console.log('Indirizzi:', ride.startPoint, ride.endPoint);
         const notifications = bookings.map(booking => ({
-          user: booking.userId,
+          userId: booking.userId,
           title: 'Viaggio cancellato',
           message: `Il viaggio da ${ride.startPoint.address} a ${ride.endPoint.address} è stato cancellato.`,
         }));
