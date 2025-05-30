@@ -29,6 +29,7 @@ router.get('/my-bookings', [authMiddleware], async (req, res) => {
   }
 });
 
+
 //per ottenere tutte prenotazioni da un viaggio rideId
 router.get('/by-ride/:id', [authMiddleware, validateObjectId], async (req, res) => {
   const  rideId = req.params.id;
@@ -89,7 +90,6 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     res.status(500).json({ error: 'Errore server' });
   }
 });
-
 
 
 /**
@@ -234,6 +234,7 @@ router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res)
   }
 });
 
+
 //manca commentone
 router.get('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   const bookingId = req.params.id;
@@ -272,6 +273,11 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
 
     //driver o prenotante possono cancellare
+    if (booking.userId.toString() !== userId && ride.driver.toString() !== userId) {
+      return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
+    }
+
+
     if (booking.userId.toString() !== userId && ride.driver.toString() !== userId) {
       return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
     }
