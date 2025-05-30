@@ -280,9 +280,7 @@ router.post('/', authMiddleware, async (req, res) => {
       price: req.body.price,
       additionalInfo: req.body.additionalInfo || ''
     });
-    console.log('aaaa');
     await ride.save();
-    console.log('bbbb');
 
     // Popola le informazioni del driver prima di restituire
     const populatedRide = await Ride.populate(ride, { 

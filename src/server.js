@@ -10,7 +10,8 @@ const homeRoutes = require('./routes/home.js');
 const adminRoutes = require('./routes/admin.js');
 const authMiddleware = require('./middleware/authmw');
 const rideRoutes = require('./routes/api/rides');
-const bookingRoutes = require('./routes/api/booking'); //forse conviene usare sempre /rides come path
+const bookingRoutes = require('./routes/api/booking');
+const ratingRoutes = require('./routes/api/rating'); //forse conviene usare sempre /rides come path
 
 //Swagger API documentation
 const swaggerUi = require('swagger-ui-express');
@@ -78,7 +79,8 @@ app.get('/register', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api', homeRoutes);
 app.use('/api/rides', rideRoutes);
-app.use('/api/bookings', bookingRoutes); //forse conviene usare sempre /rides come path
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/ratings', ratingRoutes); 
 
 
 
