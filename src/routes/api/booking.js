@@ -2,8 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
+const Notification = require('../../models/notifica'); 
 const validateObjectId = require('../../middleware/validateObjectId');
 const Prenotazione = require('../../models/booking');
+const viaggio = require('../../models/viaggio');
 
 
 
@@ -73,13 +75,24 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
         error: `Solo ${booking.ride.availableSeats} posti disponibili. Non puoi richiedere ${seatDiff} posti aggiuntivi.`
       });
     }
-  
+
     booking.seats = newSeats;
     if (Array.isArray(participants)) booking.participants = participants;
 
     if (booking.ride) {
       booking.ride.availableSeats -= seatDiff;
       await booking.ride.save();
+
+      //notifica al driver che la prenotazione è stata modificata
+      if (booking.ride.driver) {
+        const notification = new Notification({
+          userId: booking.ride.driver,
+          title: 'Prenotazione modificata',
+          message: `Una prenotazione per il viaggio da ${booking.ride.startPoint.address} a ${booking.ride.endPoint.address} è stata modificata.`,
+        });
+
+        await notification.save();
+      }
     }
 
     await booking.save();
@@ -227,6 +240,17 @@ router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res)
     }
     await userBooking.save();
     await ride.save();
+
+    if (ride.driver) {
+      const notification = new Notification({
+        userId: ride.driver,
+        title: 'Conferma partecipazione',
+        message: `Un partecipante ha confermato la propria presenza al viaggio da ${ride.startPoint.address} a ${ride.endPoint.address}.`,
+      });
+
+      await notification.save();
+    }
+
     res.status(200).json({ message: 'Participation confirmed' });
   } catch (err) {
     console.error(err.message);
@@ -291,6 +315,16 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     await ride.save();
 
     await Prenotazione.findByIdAndDelete(bookingId);
+
+    await Notification.create({
+      userId: booking.userId,
+      message: `La tua prenotazione per il viaggio da ${ride.startPoint.address} a ${ride.endPoint.address} è stata rifiutata dall'autista o cancellata.`,
+      type: 'booking_rejected',
+      data: {
+        rideId: ride._id.toString(),
+        bookingId: booking._id.toString()
+      }
+    });
 
     res.status(200).json({ message: 'Prenotazione cancellata con successo' });
   } catch (err) {

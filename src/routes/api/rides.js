@@ -5,6 +5,7 @@ const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
 const swagger = require('../../../swagger-definitions');
 const Prenotazione = require('../../models/booking');
+const Notification = require('../../models/notifica');
 
 router.get('/my-rides', [authMiddleware], async (req, res) => {
   try {
@@ -371,7 +372,10 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     if (ride.driver.toString() !== req.user.userId.toString()) {
       return res.status(403).json({ error: 'Not authorized to update this ride' });
     }
-    
+
+    const oldStartAddress  = ride.startPoint.address;
+    const oldEndAddress  = ride.endPoint.address;
+
     // Aggiorna solo i campi forniti
     const updates = {
       startPoint: {
@@ -390,6 +394,18 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     };
     
     Object.assign(ride, updates);
+
+    const bookings = await Prenotazione.find({ ride: ride._id });
+    if (bookings.length > 0) {
+        const notifications = bookings.map(booking => ({
+          userId: booking.userId,
+          title: 'Viaggio modificato',
+          message: `Il viaggio da ${oldStartAddress} a ${oldEndAddress} è stato modificato:\nDa ${ride.startPoint.address} a ${ride.endPoint.address}.`,
+        }));
+       
+    await Notification.insertMany(notifications);
+    }  
+
     await ride.save();
     
     res.json(ride);
@@ -402,21 +418,34 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
 // @route   DELETE api/rides/:id
 // @desc    Delete a ride
 // @access  Private (solo il creatore del viaggio)
+
 router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   try {
-    const ride = await Ride.findById(req.params.id);
-    
+    const ride = await Ride.findById(req.params.id).populate('bookings');
+
     if (!ride) {
       return res.status(404).json({ error: 'Ride not found' });
     }
-    
-    // Verifica che l'utente sia il driver del viaggio
+
     if (ride.driver.toString() !== req.user.userId.toString()) {
       return res.status(403).json({ error: 'Not authorized to delete this ride' });
     }
+
+    
+    const bookings = await Prenotazione.find({ ride: ride._id });
+    if (bookings.length > 0) {
+        const notifications = bookings.map(booking => ({
+          userId: booking.userId,
+          title: 'Viaggio cancellato',
+          message: `Il viaggio da ${ride.startPoint.address} a ${ride.endPoint.address} è stato cancellato.`,
+        }));
+       
+    await Notification.insertMany(notifications);
+    }  
     
     await ride.deleteOne();
-    res.json({ message: 'Ride deleted successfully' });
+
+    res.json({ message: 'Ride deleted successfully and notifications sent' });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Server error' });
