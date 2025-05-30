@@ -3,9 +3,7 @@ const router = express.Router();
 const Ride = require('../../models/viaggio');
 const authMiddleware = require('../../middleware/authmw');
 const validateObjectId = require('../../middleware/validateObjectId');
-<<<<<<< Updated upstream
 const partecipants = require('../../models/partecipants');
-=======
 const Prenotazione = require('../../models/booking');
 
 
@@ -93,8 +91,6 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   }
 });
 
-
->>>>>>> Stashed changes
 
 /**
  * @openapi
@@ -215,8 +211,7 @@ router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res)
   }
 });
 
-<<<<<<< Updated upstream
-=======
+
 //manca commentone
 router.get('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   const bookingId = req.params.id;
@@ -253,6 +248,7 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
 
     const ride = await Ride.findOne({ bookings: bookingId });
     if (!ride) return res.status(404).json({ error: 'Viaggio associato non trovato' });
+
     //driver o prenotante possono cancellare
     if (booking.userId.toString() !== userId && ride.driver.toString() !== userId) {
       return res.status(403).json({ error: 'Non sei autorizzato a cancellare questa prenotazione' });
@@ -275,5 +271,4 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
   }
 });
 
->>>>>>> Stashed changes
 module.exports = router;
