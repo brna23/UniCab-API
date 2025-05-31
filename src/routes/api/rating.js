@@ -56,16 +56,18 @@ router.delete('/:id', authMiddleware, async (req, res)=> {
             return res.status(404).json({ error: 'Recensione non trovata' });
         }
         const canDelete = req.user.userId === recensione.originUser.toString();
-        if (!canDelete) {
-        return res.status(403).json({ error: 'Non autorizzato a cancellare questa recensione' });
+        if(!isAdmin.isUserAdmin(req.user)){
+            if (!canDelete) {
+            return res.status(403).json({ error: 'Non autorizzato a cancellare questa recensione' });
+            }
         }
-
-        if (canDelete || isUserAdmin(req.user)){
+        if (canDelete || isAdmin.isUserAdmin(req.user)){
             return res.status(200).json({ message: 'Recensione cancellata con successo' });
         }else{
             return res.status(403).json({ error: 'Non autorizzato a cancellare questa recensione' });
         }
     } catch(error) {
+        console.error('Errore durante la cancellazione:', error);
         res.status(500).json({ error: 'Errore del server' });
     }
 });
