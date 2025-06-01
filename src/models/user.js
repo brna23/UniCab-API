@@ -12,8 +12,8 @@ const userSchema = new mongoose.Schema({
   rating: { type: Number, default: 5 },
   isDriver: { type: Boolean, default: false },
   vehicle: { type: String },
-  driverLicense: { type: String } //solo se isDriver === true
-});
+  driverLicense: { type: String }, //solo se isDriver === true
+  status: { type: String, enum: ['active', 'suspended', 'eliminated'], default: 'active' }});
 
 userSchema.methods.comparePassword = function (password) {
   return bcrypt.compareSync(password, this.password);

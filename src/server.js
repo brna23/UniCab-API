@@ -16,6 +16,7 @@ const bookingRoutes = require('./routes/api/booking'); //forse conviene usare se
 //notifiche
 const notificationsRoutes = require('./routes/api/notifications');
 
+const reportRoutes = require('./routes/api/report');
 
 //Swagger API documentation
 const swaggerUi = require('swagger-ui-express');
@@ -86,6 +87,8 @@ app.use('/api/rides', rideRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/ratings', ratingRoutes); 
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports', reportRoutes); 
+app.use('/api/admin', adminRoutes);
 
 
 
