@@ -3,7 +3,7 @@ const authMiddleware = require('../middleware/authmw');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const User = require('../models/user');
-
+//NON PIU UTILIZZATA
 // rotta protetta: /home
 router.get('/home', authMiddleware, async (req, res) => {
   try {
