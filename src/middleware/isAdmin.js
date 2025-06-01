@@ -4,3 +4,7 @@ module.exports = function (req, res, next) {
   }
   next();
 };
+
+module.exports.isUserAdmin = function (user) {
+  return user && user.role === 'admin';
+};
