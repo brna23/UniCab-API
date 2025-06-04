@@ -7,6 +7,27 @@ const swagger = require('../../../swagger-definitions');
 const Prenotazione = require('../../models/booking');
 const Notification = require('../../models/notifica');
 
+//quando un utente carica il "landing" nel front end questa api viene chiamata e eventuali viaggi passati vengono settati active
+router.patch('/refresh-status', async (req, res) => {
+  try {
+    const now = new Date();
+
+    const result = await Ride.updateMany(
+      {
+        status: 'pending',
+        departureTime: { $lte: now }
+      },
+      { $set: { status: 'active' } }
+    );
+
+    res.json({ updatedCount: result.modifiedCount });
+  } catch (err) {
+    console.error('Errore aggiornamento viaggi:', err);
+    res.status(500).json({ error: 'Errore nel server' });
+  }
+});
+
+
 router.get('/my-rides', [authMiddleware], async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -449,5 +470,30 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+//per flaggare un viaggio "completed" cioè compiuto con successo
+router.post('/complete/:id', [authMiddleware, validateObjectId], async (req, res) => {
+  try {
+    const rideId = req.params.id;
+    const userId = req.user.userId;
+
+    const ride = await Ride.findById(rideId);
+
+    if (!ride) return res.status(404).json({ error: 'Viaggio non trovato' });
+
+    if (ride.driver.toString() !== userId)
+      return res.status(403).json({ error: 'Non autorizzato' });
+
+    ride.status = 'completed';
+    await ride.save();
+
+    res.json({ message: 'Viaggio completato con successo' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Errore del server' });
+  }
+});
+
 
 module.exports = router;
