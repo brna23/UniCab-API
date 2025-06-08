@@ -16,25 +16,31 @@ router.post('/:id', authMiddleware, async (req, res) => {
 
         // Trova l'utente di destinazione
         const target = await User.findById(req.params.id);
-
         if (!target) {
             return res.status(404).json({ error: 'Utente destinatario non trovato.' });
         }
 
-        const rec = new Recensione({
+        const { descrizione, rating, ride } = req.body;
+
+        if (!ride) {
+            return res.status(400).json({ error: 'Ride è obbligatorio.' });
+        }
+        const
+        
+        rec = new Recensione({
             originUser: user.userId,
             destinationUser: target._id,
-            description: req.body.descrizione,
-            rating: req.body.rating
+            ride, //salva anche il riferimento al viaggio
+            description: descrizione,
+            rating: rating
         });
 
-        await rec.save(); // salva nel DB
+        await rec.save();
 
-        // CALCOLA MEDIA E AGGIORNA RATING DELL'UTENTE 
+        // Calcola media rating
         const recensioni = await Recensione.find({ destinationUser: target._id });
         const mediaRating = recensioni.reduce((sum, r) => sum + r.rating, 0) / recensioni.length;
 
-        // Aggiorna il campo rating dell'utente
         target.rating = mediaRating;
         await target.save();
 
@@ -46,6 +52,23 @@ router.post('/:id', authMiddleware, async (req, res) => {
         console.error('Errore nella creazione della recensione:', error);
         res.status(500).json({ error: 'Errore del server' });
     }
+});
+
+router.get('/my-reviewed-passengers/:rideId', authMiddleware, async (req, res) => {
+  const { rideId } = req.params;
+  const originUserId = req.user.userId;
+
+  try {
+    const recensioni = await Recensione.find({ ride: rideId, originUser: originUserId })
+      .select('destinationUser -_id');
+
+    const reviewedUserIds = recensioni.map(r => r.destinationUser.toString());
+
+    res.json({ reviewedUserIds });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Errore nel recupero delle recensioni' });
+  }
 });
 
 //delete recensione solo se admin

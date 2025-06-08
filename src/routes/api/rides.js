@@ -28,15 +28,25 @@ router.patch('/refresh-status', async (req, res) => {
 });
 
 
-router.get('/my-rides', [authMiddleware], async (req, res) => {
+router.get('/my-rides', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
 
     const rides = await Ride.find({ driver: userId })
       .populate({
         path: 'bookings',
-        match: { userId: userId }, //mostra solo i tuoi viaggi
-        populate: { path: 'userId', select: 'username name' }
+        populate: [
+          {
+            path: 'userId',
+            model: 'User',
+            select: 'name username'
+          },
+          {
+            path: 'participants.userId',
+            model: 'User',
+            select: 'name username'
+          }
+        ]
       })
       .populate('driver', 'name rating avatar')
       .lean();
