@@ -27,6 +27,120 @@ router.get('/my-rides', [authMiddleware], async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/rides/nearby:
+ *   get:
+ *     summary: Cerca viaggi vicini alla posizione dell'utente
+ *     description: Cerca viaggi disponibili entro un certo raggio di distanza (default 1km), applicando eventuali filtri di destinazione e data.
+ *     tags: [Rides]
+ *     parameters:
+ *       - in: query
+ *         name: lat
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: Latitudine dell'utente
+ *       - in: query
+ *         name: lon
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: Longitudine dell'utente
+ *       - in: query
+ *         name: destination
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Destinazione di arrivo
+ *       - in: query
+ *         name: date
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Data del viaggio (YYYY-MM-DD)
+ *       - in: query
+ *         name: range
+ *         required: false
+ *         schema:
+ *           type: number
+ *           default: 5000
+ *         description: "Raggio di ricerca in metri (default: 5000m)"
+ *     responses:
+ *       200:
+ *         description: Lista viaggi trovati
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Ride'
+ *       400:
+ *         description: Parametri mancanti o errati
+ *       500:
+ *         description: Errore server
+ */
+router.get('/nearby', async (req, res) => {
+  try {
+    const { lat, lon, destination, date, range } = req.query;
+
+    if (!lat || !lon) {
+      return res.status(400).json({ error: 'Parametri lat e lon obbligatori'});
+    }
+
+    const searchRange = range ? parseFloat(range) : 5000;
+
+    let query = {
+      status: 'pending',
+      'startPoint.coordinates': {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lon), parseFloat(lat)]
+          },
+          $maxDistance: searchRange
+        }
+      }
+    };
+
+    if (destination) {
+      query['endPoint.address'] = new RegExp(destination, 'i');
+    }
+
+    if (date) {
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setDate(startDate.getDate() + 1);
+      query.departureTime = { $gte: startDate, $lt: endDate};
+    }
+
+    let rides = await Ride.find(query)
+      .populate('driver', 'name rating avatar')
+      .lean();
+
+    if (rides.length === 0){
+      delete query['startPoint.coordinates'];
+      let broaderQuery = { ...query};
+      broaderQuery.status = 'pending';
+
+      rides = await Ride.find(broaderQuery)
+        .populate('driver', 'name rating avatar')
+        .lean();
+
+        return res.json({
+          message: 'Nessun viaggio trovato entro ${searchRange} metri. Ecco i viaggi più lontani:',
+          rides
+        });
+    }
+
+    res.json(rides);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({error: 'Errore server'});
+  }
+});
+
 
 /**
  * @openapi
