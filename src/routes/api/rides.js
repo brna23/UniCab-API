@@ -22,8 +22,8 @@ router.patch('/refresh-status', async (req, res) => {
 
     res.json({ updatedCount: result.modifiedCount });
   } catch (err) {
-    console.error('Errore aggiornamento viaggi:', err);
-    res.status(500).json({ error: 'Errore nel server' });
+    console.error('Error updating trips:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -48,13 +48,13 @@ router.get('/my-rides', authMiddleware, async (req, res) => {
           }
         ]
       })
-      .populate('driver', 'name rating avatar')
+      .populate('driver', 'name rating')
       .lean();
 
     res.json(rides);
   } catch (error) {
-    console.error('Errore nel recupero dei viaggi come autista:', error);
-    res.status(500).json({ error: 'Errore del server' });
+    console.error('Error retrieving trips as a driver', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -63,7 +63,7 @@ router.get('/my-rides', authMiddleware, async (req, res) => {
  * /api/rides/nearby:
  *   get:
  *     summary: Cerca viaggi vicini alla posizione dell'utente
- *     description: Cerca viaggi disponibili entro un certo raggio di distanza (default 1km), applicando eventuali filtri di destinazione e data.
+ *     description: Cerca viaggi disponibili entro un certo raggio di distanza (default 5km), applicando eventuali filtri di destinazione e data.
  *     tags: [Rides]
  *     parameters:
  *       - in: query
@@ -116,15 +116,14 @@ router.get('/nearby', async (req, res) => {
   try {
     const { lat, lon, destination, date, range } = req.query;
 
-    if (!lat || !lon) {
-      return res.status(400).json({ error: 'Parametri lat e lon obbligatori'});
-    }
-
     const searchRange = range ? parseFloat(range) : 5000;
 
     let query = {
-      status: 'pending',
-      'startPoint.coordinates': {
+      status: 'pending'
+    };
+
+    if (lat && lon) {
+      query['startPoint.coordinates'] = {
         $near: {
           $geometry: {
             type: 'Point',
@@ -132,8 +131,8 @@ router.get('/nearby', async (req, res) => {
           },
           $maxDistance: searchRange
         }
-      }
-    };
+      };
+    }
 
     if (destination) {
       query['endPoint.address'] = new RegExp(destination, 'i');
@@ -143,32 +142,29 @@ router.get('/nearby', async (req, res) => {
       const startDate = new Date(date);
       const endDate = new Date(date);
       endDate.setDate(startDate.getDate() + 1);
-      query.departureTime = { $gte: startDate, $lt: endDate};
+      query.departureTime = { $gte: startDate, $lt: endDate };
     }
 
     let rides = await Ride.find(query)
-      .populate('driver', 'name rating avatar')
+      .populate('driver', 'name rating')
       .lean();
 
-    if (rides.length === 0){
+    if (lat && lon && rides.length === 0) {
       delete query['startPoint.coordinates'];
-      let broaderQuery = { ...query};
-      broaderQuery.status = 'pending';
-
-      rides = await Ride.find(broaderQuery)
-        .populate('driver', 'name rating avatar')
+      rides = await Ride.find(query)
+        .populate('driver', 'name rating')
         .lean();
 
-        return res.json({
-          message: 'Nessun viaggio trovato entro ${searchRange} metri. Ecco i viaggi più lontani:',
-          rides
-        });
+      return res.json({
+        message: `No trips found within ${searchRange} meters. Here are the farthest trips:`,
+        rides
+      });
     }
 
     res.json(rides);
   } catch (err) {
     console.error(err);
-    res.status(500).json({error: 'Errore server'});
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -228,7 +224,6 @@ router.get('/', async (req, res) => {
     // Filtro base: solo viaggi con status 'pending' (disponibili)
     let query = { status: 'pending' };
     
-    // Aggiungi filtri dalla query string se presenti
     if (req.query.from) {
       query['startPoint.address'] = new RegExp(req.query.from, 'i');
     }
@@ -252,19 +247,18 @@ router.get('/', async (req, res) => {
       query.availableSeats = { $gte: parseInt(req.query.seats) };
     }
     
-    // Ordinamento
+    
     const sort = {};
     if (req.query.sortBy) {
       const parts = req.query.sortBy.split(':');
       sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
     } else {
-      sort.departureTime = 1; // Default: ordine crescente per data
+      sort.departureTime = 1; 
     }
     
-    // Popola le informazioni del driver
     const rides = await Ride.find(query)
       .sort(sort)
-      .populate('driver', 'name rating avatar')
+      .populate('driver', 'name rating')
       .lean();
     
     res.json(rides);
@@ -404,13 +398,12 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     // Verifica che l'utente sia un driver
     const user = req.user;
-    if (!user) return res.status(404).json({ error: 'Utente non trovato' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
     console.log(user);
     if (!user.isDriver) {
       return res.status(403).json({ error: 'Only drivers can create rides' });
     }
     
-    // Crea il nuovo viaggio
     const ride = new Ride({
       driver: user.userId,
       startPoint: {
@@ -431,7 +424,7 @@ router.post('/', authMiddleware, async (req, res) => {
     // Popola le informazioni del driver prima di restituire
     const populatedRide = await Ride.populate(ride, { 
       path: 'driver', 
-      select: 'name rating avatar' 
+      select: 'name rating' 
     });
     
     res.status(201).json(populatedRide);
@@ -519,7 +512,6 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     const oldStartAddress  = ride.startPoint.address;
     const oldEndAddress  = ride.endPoint.address;
 
-    // Aggiorna solo i campi forniti
     const updates = {
       startPoint: {
         address: req.body.startAddress || ride.startPoint.address,
@@ -542,8 +534,8 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     if (bookings.length > 0) {
         const notifications = bookings.map(booking => ({
           userId: booking.userId,
-          title: 'Viaggio modificato',
-          message: `Il viaggio da ${oldStartAddress} a ${oldEndAddress} è stato modificato:\nDa ${ride.startPoint.address} a ${ride.endPoint.address}.`,
+          title: 'Modified trip',
+          message: `The trip from ${oldStartAddress} to ${oldEndAddress} has been changed:\nFrom ${ride.startPoint.address} to ${ride.endPoint.address}.`,
         }));
        
     await Notification.insertMany(notifications);
@@ -579,8 +571,8 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
     if (bookings.length > 0) {
         const notifications = bookings.map(booking => ({
           userId: booking.userId,
-          title: 'Viaggio cancellato',
-          message: `Il viaggio da ${ride.startPoint.address} a ${ride.endPoint.address} è stato cancellato.`,
+          title: 'Cancelled trip',
+          message: `The trip from ${ride.startPoint.address} to ${ride.endPoint.address} has been cancelled.`,
         }));
        
     await Notification.insertMany(notifications);
@@ -596,7 +588,6 @@ router.delete('/:id', [authMiddleware, validateObjectId], async (req, res) => {
 });
 
 
-//per flaggare un viaggio "completed" cioè compiuto con successo
 router.post('/complete/:id', [authMiddleware, validateObjectId], async (req, res) => {
   try {
     const rideId = req.params.id;
@@ -604,18 +595,18 @@ router.post('/complete/:id', [authMiddleware, validateObjectId], async (req, res
 
     const ride = await Ride.findById(rideId);
 
-    if (!ride) return res.status(404).json({ error: 'Viaggio non trovato' });
+    if (!ride) return res.status(404).json({ error: 'Trip not found' });
 
     if (ride.driver.toString() !== userId)
-      return res.status(403).json({ error: 'Non autorizzato' });
+      return res.status(403).json({ error: 'Not authorized' });
 
     ride.status = 'completed';
     await ride.save();
 
-    res.json({ message: 'Viaggio completato con successo' });
+    res.json({ message: 'Trip completed successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Errore del server' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
