@@ -105,40 +105,6 @@ router.put('/:id', [authMiddleware, validateObjectId], async (req, res) => {
 });
 
 
-/**
- * @openapi
- * /api/bookings/{id}/book:
- *   post:
- *     summary: Book a ride (single or multiple seats)
- *     tags:
- *       - Bookings
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: Ride ID
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               seats:
- *                 type: integer
- *                 example: 3
- *               participants:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["665f2b3e84a7ab001223a123", "665f2b3e84a7ab001223a456"]
- *     responses:
- *       201:
- *         description: Booking created
- *       400:
- *         description: Invalid input or full
- */
 router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) => {
   const { seats, participants } = req.body;
   
@@ -191,26 +157,7 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
   }
 });
 
-/**
- * @openapi
- * /api/bookings/{id}/confirm:
- *   post:
- *     summary: Confirm participation as invited passenger
- *     tags:
- *       - Bookings
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: Ride ID
- *     responses:
- *       200:
- *         description: Confirmation successful
- *       403:
- *         description: You were not invited
- */
+
 router.post('/:id/confirm', [authMiddleware, validateObjectId], async (req, res) => {
   try {
     const ride = await Ride.findById(req.params.id).populate({

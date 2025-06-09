@@ -98,3 +98,5 @@ app.use('/api/admin', adminRoutes);
 app.listen(process.env.PORT, () => {
   console.log(`Server in ascolto sulla porta ${process.env.PORT}`);
 });
+
+module.exports = app;
