@@ -3,16 +3,6 @@ const authMiddleware = require('../middleware/authmw');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const User = require('../models/user');
-//NON PIU UTILIZZATA
-// rotta protetta: /home
-router.get('/home', authMiddleware, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId).select('-password');
-    res.json({ user });
-  } catch (err) {
-    res.status(500).json({ message: 'Errore interno', error: err.message });
-  }
-});
 
 router.put(
   '/user/profile',

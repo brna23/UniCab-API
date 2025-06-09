@@ -405,7 +405,11 @@ router.post('/', authMiddleware, async (req, res) => {
     // Verifica che l'utente sia un driver
     const user = req.user;
     if (!user) return res.status(404).json({ error: 'Utente non trovato' });
-    console.log(user);
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Il tuo account è sospeso. Non puoi creare viaggi.' });
+    }
+    
     if (!user.isDriver) {
       return res.status(403).json({ error: 'Only drivers can create rides' });
     }
