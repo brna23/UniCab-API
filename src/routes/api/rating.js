@@ -14,6 +14,10 @@ router.post('/:id', authMiddleware, async (req, res) => {
     try {
         const user = req.user;
 
+        if (user.status === 'suspended') {
+        return res.status(403).json({ error: 'Il tuo account è sospeso. Non puoi scrivere recensioni.' });
+        }
+    
         // Trova l'utente di destinazione
         const target = await User.findById(req.params.id);
         if (!target) {

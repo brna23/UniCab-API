@@ -6,6 +6,7 @@ const Notification = require('../../models/notifica');
 const validateObjectId = require('../../middleware/validateObjectId');
 const Prenotazione = require('../../models/booking');
 const viaggio = require('../../models/viaggio');
+const User = require('../../models/user');
 
 
 
@@ -143,6 +144,13 @@ router.post('/:id/book', [authMiddleware, validateObjectId], async (req, res) =>
   const { seats, participants } = req.body;
   
   try {
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ error: 'Utente non trovato' });
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Il tuo account è sospeso. Non puoi effettuare prenotazioni.' });
+    }
+
     const ride = await Ride.findById(req.params.id).populate('bookings');
     if (!ride) return res.status(404).json({ error: 'Ride not found' });
 
