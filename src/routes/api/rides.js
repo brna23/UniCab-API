@@ -172,63 +172,6 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
-=======
-/**
- * @openapi
- * /api/rides/nearby:
- *   get:
- *     summary: Cerca viaggi vicini alla posizione dell'utente
- *     description: Cerca viaggi disponibili entro un certo raggio di distanza (default 1km), applicando eventuali filtri di destinazione e data.
- *     tags: [Rides]
- *     parameters:
- *       - in: query
- *         name: lat
- *         required: true
- *         schema:
- *           type: number
- *         description: Latitudine dell'utente
- *       - in: query
- *         name: lon
- *         required: true
- *         schema:
- *           type: number
- *         description: Longitudine dell'utente
- *       - in: query
- *         name: destination
- *         required: false
- *         schema:
- *           type: string
- *         description: Destinazione di arrivo
- *       - in: query
- *         name: date
- *         required: false
- *         schema:
- *           type: string
- *           format: date
- *         description: Data del viaggio (YYYY-MM-DD)
- *       - in: query
- *         name: range
- *         required: false
- *         schema:
- *           type: number
- *           default: 5000
- *         description: "Raggio di ricerca in metri (default: 5000m)"
- *     responses:
- *       200:
- *         description: Lista viaggi trovati
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Ride'
- *       400:
- *         description: Parametri mancanti o errati
- *       500:
- *         description: Errore server
- */
->>>>>>> 0e817f0d01f84ee092ce147346f3952d45259f4a
 router.get('/nearby', async (req, res) => {
   try {
     const { lat, lon, destination, date, range } = req.query;
@@ -375,6 +318,11 @@ router.post('/', authMiddleware, async (req, res) => {
     // Verifica che l'utente sia un driver
     const user = req.user;
     if (!user) return res.status(404).json({ error: 'Utente non trovato' });
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Il tuo account è sospeso. Non puoi creare viaggi.' });
+    }
+    
     if (!user.isDriver) {
       return res.status(403).json({ error: 'Only drivers can create rides' });
     }

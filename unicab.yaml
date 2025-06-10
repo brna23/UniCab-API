@@ -1,324 +1,203 @@
 openapi: 3.0.0
 info:
   title: UniCab API
+  description: API per il servizio di ridesharing
   version: 1.0.0
+servers:
+  - url: https://httpbin.org
+    description: Development server
+tags:
+  - name: Auth
+    description: Autenticazione e registrazione
+  - name: Users
+    description: Operazioni sugli utenti
+  - name: Rides
+    description: Gestione viaggi
+  - name: Bookings
+    description: Prenotazioni viaggi
+  - name: Notifications
+    description: Gestione notifiche
+  - name: Ratings
+    description: Recensioni e valutazioni
+  - name: Reports
+    description: Segnalazioni utenti
+  - name: Admin
+    description: Operazioni amministrative
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        isDriver:
+          type: boolean
+        rating:
+          type: number
+        avatar:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended, eliminated]
+    Ride:
+      type: object
+      properties:
+        _id:
+          type: string
+        driver:
+          $ref: '#/components/schemas/User'
+        startPoint:
+          type: object
+          properties:
+            address:
+              type: string
+            coordinates:
+              type: array
+              items:
+                type: number
+        endPoint:
+          type: object
+          properties:
+            address:
+              type: string
+            coordinates:
+              type: array
+              items:
+                type: number
+        departureTime:
+          type: string
+          format: date-time
+        availableSeats:
+          type: integer
+        price:
+          type: number
+        status:
+          type: string
+          enum: [pending, active, completed]
+    Booking:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          $ref: '#/components/schemas/User'
+        ride:
+          $ref: '#/components/schemas/Ride'
+        seats:
+          type: integer
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              confirmed:
+                type: boolean
+    Notification:
+      type: object
+      properties:
+        _id:
+          type: string
+        userId:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+    Rating:
+      type: object
+      properties:
+        _id:
+          type: string
+        originUser:
+          type: string
+        destinationUser:
+          type: string
+        ride:
+          type: string
+        description:
+          type: string
+        rating:
+          type: number
+    Report:
+      type: object
+      properties:
+        _id:
+          type: string
+        reporterUser:
+          type: string
+        reportedUser:
+          type: string
+        reason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
 paths:
-  /api/rides:
-    get:
-      summary: Elenco viaggi disponibili
-      description: Restituisce una lista di viaggi con filtri opzionali
-      tags:
-        - Rides
-      parameters:
-        - in: query
-          name: from
-          schema:
-            type: string
-          description: Filtro per indirizzo di partenza
-        - in: query
-          name: to
-          schema:
-            type: string
-          description: Filtro per indirizzo di destinazione
-        - in: query
-          name: date
-          schema:
-            type: string
-            format: date
-          description: Filtro per data (YYYY-MM-DD)
-        - in: query
-          name: seats
-          schema:
-            type: integer
-          description: Filtro per posti disponibili minimi
-        - in: query
-          name: sortBy
-          schema:
-            type: string
-            enum:
-              - 'departureTime:asc'
-              - 'departureTime:desc'
-              - 'price:asc'
-              - 'price:desc'
-          description: Ordinamento risultati
-      responses:
-        '200':
-          description: Lista di viaggi con o senza parametri di ricerca
-        '500':
-          description: Errore server
+  /auth/register:
     post:
-      summary: Crea un nuovo viaggio
-      description: Permette a un driver autenticato di creare un nuovo viaggio
-      tags:
-        - Rides
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - startAddress
-                - endAddress
-                - departureTime
-                - availableSeats
-                - price
-              properties:
-                startAddress:
-                  type: string
-                  example: 'Piazza Duomo, Milano'
-                  description: Indirizzo di partenza
-                endAddress:
-                  type: string
-                  example: 'Stazione Centrale, Milano'
-                  description: Indirizzo di destinazione
-                departureTime:
-                  type: string
-                  format: date-time
-                  example: '2023-12-15T08:00:00Z'
-                  description: Data e ora di partenza (ISO 8601)
-                availableSeats:
-                  type: integer
-                  minimum: 1
-                  example: 3
-                  description: Numero di posti disponibili
-                price:
-                  type: number
-                  minimum: 0
-                  example: 15.5
-                  description: Prezzo per passeggero
-                additionalInfo:
-                  type: string
-                  example: Bagaglio massimo 10kg
-                  description: Informazioni aggiuntive
-      responses:
-        '201':
-          description: Viaggio creato con successo
-        '400':
-          description: Richiesta non valida
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: Campi obbligatori mancanti
-                  details:
-                    type: object
-        '401':
-          description: Non autenticato
-        '403':
-          description: Autorizzazione negata (solo per driver)
-        '500':
-          description: Errore server
-  '/api/rides/{id}':
-    get:
-      summary: Dettaglio viaggio
-      description: Restituisce i dettagli di un singolo viaggio
-      tags:
-        - Rides
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: ID del viaggio
-      responses:
-        '200':
-          description: Dettaglio viaggio
-        '404':
-          description: Viaggio non trovato
-        '500':
-          description: Errore server
-    put:
-      summary: Aggiorna un viaggio
-      description: Permette al driver di modificare i dettagli del viaggio
-      tags:
-        - Rides
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: ID del viaggio
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                startAddress:
-                  type: string
-                endAddress:
-                  type: string
-                departureTime:
-                  type: string
-                  format: date-time
-                availableSeats:
-                  type: integer
-                price:
-                  type: number
-                status:
-                  type: string
-                  enum:
-                    - pending
-                    - active
-                    - completed
-                    - cancelled
-      responses:
-        '200':
-          description: Viaggio aggiornato
-        '400':
-          description: Richiesta non valida
-        '403':
-          description: Non autorizzato (solo il driver può modificare)
-        '404':
-          description: Viaggio non trovato
-        '500':
-          description: Errore server
-    delete:
-      summary: Cancella un viaggio
-      description: Permette al driver di cancellare un viaggio
-      tags:
-        - Rides
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: string
-          description: ID del viaggio
-      responses:
-        '200':
-          description: Viaggio cancellato con successo
-        '400':
-          description: Richiesta non valida
-        '403':
-          description: Non autorizzato (solo il driver può cancellare)
-        '404':
-          description: Viaggio non trovato
-        '500':
-          description: Errore server
-  '/api/bookings/{id}/book':
-    post:
-      summary: Prenota una corsa (singola o multipla)
-      tags:
-        - Bookings
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: Ride ID
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                seats:
-                  type: integer
-                  example: 3
-                participants:
-                  type: array
-                  items:
-                    type: string
-                  example:
-                    - 665f2b3e84a7ab001223a123
-                    - 665f2b3e84a7ab001223a456
-      responses:
-        '201':
-          description: Booking created
-        '400':
-          description: Invalid input or full
-  '/api/bookings/{id}/confirm':
-    post:
-      summary: Conferma prenotazione a cui sei stato invitato
-      tags:
-        - Bookings
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-          description: Ride ID
-      responses:
-        '200':
-          description: Confirmation successful
-        '403':
-          description: You were not invited
-  /api/auth/register:
-    post:
+      tags: [Auth]
       summary: Registra un nuovo utente
-      description: Crea un nuovo account utente se lo username non è già in uso.
-      tags:
-        - Auth
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - username
-                - password
               properties:
                 username:
                   type: string
-                  example: utente123
                 password:
                   type: string
-                  example: PasswordSicura123
+                email:
+                  type: string
+                isDriver:
+                  type: boolean
+                driverLicense:
+                  type: string
       responses:
         '201':
           description: Registrazione completata
         '400':
-          description: Username già esistente
+          description: Dati mancanti o errati
         '500':
-          description: Errore nel server
-  /api/auth/login:
+          description: Errore server
+
+  /auth/login:
     post:
-      summary: Effettua il login di un utente
-      description: >-
-        Verifica le credenziali e restituisce un token JWT se l'autenticazione
-        ha successo.
-      tags:
-        - Auth
+      tags: [Auth]
+      summary: Login utente
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - username
-                - password
               properties:
                 username:
                   type: string
-                  example: utente123
                 password:
                   type: string
-                  example: PasswordSicura123
       responses:
         '200':
-          description: 'Login effettuato con successo, ritorna un token JWT'
+          description: Login riuscito
           content:
             application/json:
               schema:
@@ -326,10 +205,816 @@ paths:
                 properties:
                   token:
                     type: string
-                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6...
         '400':
           description: Credenziali errate
+        '403':
+          description: Account sospeso
         '500':
-          description: Errore nel server
-components: {}
-tags: []
+          description: Errore server
+
+  /auth/google:
+    get:
+      tags: [Auth]
+      summary: Login con Google
+      responses:
+        '302':
+          description: Reindirizzamento a Google OAuth
+
+  /auth/google/callback:
+    get:
+      tags: [Auth]
+      summary: Callback per Google OAuth
+      responses:
+        '302':
+          description: Reindirizzamento con token JWT
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Ottieni informazioni utente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Info utente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore server
+
+  /rides:
+    get:
+      tags: [Rides]
+      summary: Ottieni tutti i viaggi disponibili
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+        - in: query
+          name: to
+          schema:
+            type: string
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: seats
+          schema:
+            type: integer
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista viaggi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ride'
+        '500':
+          description: Errore server
+
+    post:
+      tags: [Rides]
+      summary: Crea un nuovo viaggio
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startAddress:
+                  type: string
+                startCoordinates:
+                  type: array
+                  items:
+                    type: number
+                endAddress:
+                  type: string
+                endCoordinates:
+                  type: array
+                  items:
+                    type: number
+                departureTime:
+                  type: string
+                  format: date-time
+                availableSeats:
+                  type: integer
+                price:
+                  type: number
+                additionalInfo:
+                  type: string
+      responses:
+        '201':
+          description: Viaggio creato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+        '400':
+          description: Dati mancanti o errati
+        '403':
+          description: Solo autisti possono creare viaggi
+        '500':
+          description: Errore server
+
+  /rides/nearby:
+    get:
+      tags: [Rides]
+      summary: Cerca viaggi vicini
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: lon
+          required: true
+          schema:
+            type: number
+        - in: query
+          name: destination
+          schema:
+            type: string
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: range
+          schema:
+            type: number
+            default: 5000
+      responses:
+        '200':
+          description: Lista viaggi vicini
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ride'
+        '400':
+          description: Parametri mancanti
+        '500':
+          description: Errore server
+
+  /rides/refresh-status:
+    patch:
+      tags: [Rides]
+      summary: Aggiorna lo stato dei viaggi (sistema)
+      responses:
+        '200':
+          description: Conteggio viaggi aggiornati
+        '500':
+          description: Errore server
+
+  /rides/my-rides:
+    get:
+      tags: [Rides]
+      summary: Ottieni i miei viaggi (come autista)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista dei miei viaggi
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ride'
+        '500':
+          description: Errore server
+
+  /rides/{id}:
+    get:
+      tags: [Rides]
+      summary: Ottieni dettagli viaggio
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dettagli viaggio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+    put:
+      tags: [Rides]
+      summary: Modifica viaggio
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startAddress:
+                  type: string
+                startCoordinates:
+                  type: array
+                  items:
+                    type: number
+                endAddress:
+                  type: string
+                endCoordinates:
+                  type: array
+                  items:
+                    type: number
+                departureTime:
+                  type: string
+                  format: date-time
+                availableSeats:
+                  type: integer
+                price:
+                  type: number
+                additionalInfo:
+                  type: string
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Viaggio modificato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ride'
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+    delete:
+      tags: [Rides]
+      summary: Elimina viaggio
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Viaggio eliminato
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+  /rides/complete/{id}:
+    post:
+      tags: [Rides]
+      summary: Segna viaggio come completato
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Viaggio completato
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+  /bookings/my-bookings:
+    get:
+      tags: [Bookings]
+      summary: Ottieni le mie prenotazioni
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista prenotazioni
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        '500':
+          description: Errore server
+
+  /bookings/by-ride/{id}:
+    get:
+      tags: [Bookings]
+      summary: Ottieni prenotazioni per un viaggio (solo autista)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista prenotazioni
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+  /bookings/{id}/book:
+    post:
+      tags: [Bookings]
+      summary: Prenota un viaggio
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seats:
+                  type: integer
+                participants:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      confirmed:
+                        type: boolean
+      responses:
+        '201':
+          description: Prenotazione creata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  bookingId:
+                    type: string
+        '400':
+          description: Posti non disponibili o già prenotato
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+  /bookings/{id}/confirm:
+    post:
+      tags: [Bookings]
+      summary: Conferma partecipazione a viaggio
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Partecipazione confermata
+        '403':
+          description: Non invitato al viaggio
+        '404':
+          description: Viaggio non trovato
+        '500':
+          description: Errore server
+
+  /bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Ottieni dettagli prenotazione
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Dettagli prenotazione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '403':
+          description: Accesso negato
+        '404':
+          description: Prenotazione non trovata
+        '500':
+          description: Errore server
+
+    put:
+      tags: [Bookings]
+      summary: Modifica prenotazione
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                seats:
+                  type: integer
+                participants:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      confirmed:
+                        type: boolean
+      responses:
+        '200':
+          description: Prenotazione modificata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Posti non disponibili
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Prenotazione non trovata
+        '500':
+          description: Errore server
+
+    delete:
+      tags: [Bookings]
+      summary: Cancella prenotazione
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Prenotazione cancellata
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Prenotazione non trovata
+        '500':
+          description: Errore server
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Ottieni le mie notifiche
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista notifiche
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '500':
+          description: Errore server
+
+  /notifications/mark-all-read:
+    patch:
+      tags: [Notifications]
+      summary: Segna tutte le notifiche come lette
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notifiche aggiornate
+        '500':
+          description: Errore server
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Segna notifica come letta
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notifica aggiornata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '404':
+          description: Notifica non trovata
+        '500':
+          description: Errore server
+
+  /ratings/{id}:
+    post:
+      tags: [Ratings]
+      summary: Crea recensione per utente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                descrizione:
+                  type: string
+                rating:
+                  type: number
+                ride:
+                  type: string
+      responses:
+        '201':
+          description: Recensione creata
+        '400':
+          description: Dati mancanti
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore server
+
+    delete:
+      tags: [Ratings]
+      summary: Elimina recensione (admin o autore)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recensione eliminata
+        '403':
+          description: Non autorizzato
+        '404':
+          description: Recensione non trovata
+        '500':
+          description: Errore server
+
+  /ratings/user/{id}:
+    get:
+      tags: [Ratings]
+      summary: Ottieni recensioni per utente
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista recensioni
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Rating'
+        '500':
+          description: Errore server
+
+  /ratings/my-reviewed-passengers/{rideId}:
+    get:
+      tags: [Ratings]
+      summary: Ottieni passeggeri già recensiti per un viaggio
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: rideId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista ID utenti recensiti
+        '500':
+          description: Errore server
+
+  /reports:
+    post:
+      tags: [Reports]
+      summary: Segnala un utente
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reportedUserId:
+                  type: string
+                reason:
+                  type: string
+      responses:
+        '201':
+          description: Segnalazione inviata
+        '400':
+          description: Dati mancanti
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore server
+
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: Ottieni tutte le segnalazioni (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista segnalazioni
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Report'
+        '500':
+          description: Errore server
+
+  /admin/users/{id}/suspend:
+    patch:
+      tags: [Admin]
+      summary: Sospendi utente (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Utente sospeso
+        '400':
+          description: Utente già sospeso
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore server
+
+  /admin/users/{id}/activate:
+    patch:
+      tags: [Admin]
+      summary: Riattiva utente sospeso (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Utente riattivato
+        '400':
+          description: Utente già attivo
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore server
+
+  /admin/users/{id}/cancel:
+    patch:
+      tags: [Admin]
+      summary: Elimina utente (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Utente eliminato
+        '400':
+          description: Utente già eliminato
+        '404':
+          description: Utente non trovato
+        '500':
+          description: Errore server
+
+  /admin/admin-dashboard:
+    get:
+      tags: [Admin]
+      summary: Dashboard amministratore
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Accesso consentito
+        '403':
+          description: Accesso negato
