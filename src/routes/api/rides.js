@@ -22,7 +22,7 @@ router.patch('/refresh-status', async (req, res) => {
 
     res.json({ updatedCount: result.modifiedCount });
   } catch (err) {
-    console.error('Errore aggiornamento viaggi:', err);
+    //console.error('Errore aggiornamento viaggi:', err);
     res.status(500).json({ error: 'Errore nel server' });
   }
 });
@@ -172,54 +172,67 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
+router.get('/nearby', async (req, res) => {
+  try {
+    const { lat, lon, destination, date, range } = req.query;
 
-/**
- * @openapi
- * /api/rides:
- *   get:
- *     summary: Elenco viaggi disponibili
- *     description: Restituisce una lista di viaggi con filtri opzionali
- *     tags: [Rides]
- *     parameters:
- *       - in: query
- *         name: from
- *         schema:
- *           type: string
- *         description: Filtro per indirizzo di partenza
- *       - in: query
- *         name: to
- *         schema:
- *           type: string
- *         description: Filtro per indirizzo di destinazione
- *       - in: query
- *         name: date
- *         schema:
- *           type: string
- *           format: date
- *         description: Filtro per data (YYYY-MM-DD)
- *       - in: query
- *         name: seats
- *         schema:
- *           type: integer
- *         description: Filtro per posti disponibili minimi
- *       - in: query
- *         name: sortBy
- *         schema:
- *           type: string
- *           enum: [departureTime:asc, departureTime:desc, price:asc, price:desc]
- *         description: Ordinamento risultati
- *     responses:
- *       200:
- *         description: Lista di viaggi
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Ride'
- *       500:
- *         description: Errore server
- */
+    if (!lat || !lon) {
+      return res.status(400).json({ error: 'Parametri lat e lon obbligatori'});
+    }
+
+    const searchRange = range ? parseFloat(range) : 5000;
+
+    let query = {
+      status: 'pending',
+      'startPoint.coordinates': {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lon), parseFloat(lat)]
+          },
+          $maxDistance: searchRange
+        }
+      }
+    };
+
+    if (destination) {
+      query['endPoint.address'] = new RegExp(destination, 'i');
+    }
+
+    if (date) {
+      const startDate = new Date(date);
+      const endDate = new Date(date);
+      endDate.setDate(startDate.getDate() + 1);
+      query.departureTime = { $gte: startDate, $lt: endDate};
+    }
+
+    let rides = await Ride.find(query)
+      .populate('driver', 'name rating avatar')
+      .lean();
+
+    if (rides.length === 0){
+      delete query['startPoint.coordinates'];
+      let broaderQuery = { ...query};
+      broaderQuery.status = 'pending';
+
+      rides = await Ride.find(broaderQuery)
+        .populate('driver', 'name rating avatar')
+        .lean();
+
+        return res.json({
+          message: 'Nessun viaggio trovato entro ${searchRange} metri. Ecco i viaggi più lontani:',
+          rides
+        });
+    }
+
+    res.json(rides);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({error: 'Errore server'});
+  }
+});
+
+
 // @route   GET api/rides
 // @desc    Get all rides
 // @access  Public
@@ -274,32 +287,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/rides/{id}:
- *   get:
- *     summary: Dettaglio viaggio
- *     description: Restituisce i dettagli di un singolo viaggio
- *     tags: [Rides]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID del viaggio
- *     responses:
- *       200:
- *         description: Dettaglio viaggio
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Ride'
- *       404:
- *         description: Viaggio non trovato
- *       500:
- *         description: Errore server
- */
+
 // @route   GET api/rides/:id
 // @desc    Get single ride by ID
 // @access  Public
@@ -321,81 +309,6 @@ router.get('/:id', validateObjectId, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/rides:
- *   post:
- *     summary: Crea un nuovo viaggio
- *     description: Permette a un driver autenticato di creare un nuovo viaggio
- *     tags: [Rides]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - startAddress
- *               - endAddress
- *               - departureTime
- *               - availableSeats
- *               - price
- *             properties:
- *               startAddress:
- *                 type: string
- *                 example: "Piazza Duomo, Milano"
- *                 description: Indirizzo di partenza
- *               endAddress:
- *                 type: string
- *                 example: "Stazione Centrale, Milano"
- *                 description: Indirizzo di destinazione
- *               departureTime:
- *                 type: string
- *                 format: date-time
- *                 example: "2023-12-15T08:00:00Z"
- *                 description: Data e ora di partenza (ISO 8601)
- *               availableSeats:
- *                 type: integer
- *                 minimum: 1
- *                 example: 3
- *                 description: Numero di posti disponibili
- *               price:
- *                 type: number
- *                 minimum: 0
- *                 example: 15.50
- *                 description: Prezzo per passeggero
- *               additionalInfo:
- *                 type: string
- *                 example: "Bagaglio massimo 10kg"
- *                 description: Informazioni aggiuntive
- *     responses:
- *       201:
- *         description: Viaggio creato con successo
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#components/schemas/Ride'
- *       400:
- *         description: Richiesta non valida
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: "Campi obbligatori mancanti"
- *                 details:
- *                   type: object
- *       401:
- *         description: Non autenticato
- *       403:
- *         description: Autorizzazione negata (solo per driver)
- *       500:
- *         description: Errore server
- */
 
 // @route   POST api/rides
 // @desc    Create a new ride
@@ -440,7 +353,7 @@ router.post('/', authMiddleware, async (req, res) => {
     
     res.status(201).json(populatedRide);
   } catch (err) {
-    console.error(err.message);
+    //console.error(err.message);
     
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
@@ -451,59 +364,7 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * @openapi
- * /api/rides/{id}:
- *   put:
- *     summary: Aggiorna un viaggio
- *     description: Permette al driver di modificare i dettagli del viaggio
- *     tags: [Rides]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: ID del viaggio
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               startAddress:
- *                 type: string
- *               endAddress:
- *                 type: string
- *               departureTime:
- *                 type: string
- *                 format: date-time
- *               availableSeats:
- *                 type: integer
- *               price:
- *                 type: number
- *               status:
- *                 type: string
- *                 enum: [pending, active, completed, cancelled]
- *     responses:
- *       200:
- *         description: Viaggio aggiornato
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Ride'
- *       400:
- *         description: Richiesta non valida
- *       403:
- *         description: Non autorizzato (solo il driver può modificare)
- *       404:
- *         description: Viaggio non trovato
- *       500:
- *         description: Errore server
- */
+
 // @route   PUT api/rides/:id
 // @desc    Update a ride
 // @access  Private (solo il creatore del viaggio)
