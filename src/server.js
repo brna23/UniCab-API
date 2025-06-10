@@ -1,6 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
+const dotenv = require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 const cors = require('cors');
 //const { path } = require('express/lib/application');
 const path = require('path');
@@ -37,7 +37,7 @@ const swaggerSpec = swaggerJsdoc(options);
 
 
 // Carica le variabili d'ambiente
-dotenv.config({path:'../.env'});
+//dotenv.config({path:'../.env'});
 
 //oauth
 const passport = require('./config/passport');
