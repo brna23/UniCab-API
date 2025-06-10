@@ -1,4 +1,4 @@
-/*require('dotenv').config({ path: '.env.test' });
+require('dotenv').config({ path: '.env.test' });
 
 const request = require('supertest');
 const mongoose = require('mongoose');
@@ -153,4 +153,4 @@ describe('POST /login', () => {
     expect(res.statusCode).toBe(403);
     expect(res.body.message).toMatch(/sospeso/i);
   });
-});*/
+});
