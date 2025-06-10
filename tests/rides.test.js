@@ -1,4 +1,4 @@
-/*require('dotenv').config({ path: '.env.test' });
+require('dotenv').config({ path: '.env.test' });
 
 const request = require('supertest');
 const mongoose = require('mongoose');
@@ -185,4 +185,4 @@ describe('POST /api/rides/complete/:id', () => {
       //.set('Authorization', `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODI0NjllNWZmMzY0M2IxYmE3MmFhMTUiLCJ1c2VybmFtZSI6Im1hdHRpYSIsInJvbGUiOiJhZG1pbiIsImlzRHJpdmVyIjp0cnVlLCJpYXQiOjE3NDk0NzkzNTgsImV4cCI6MTc0OTQ4Mjk1OH0.B2aq0b-_eQBGBJRgPALJ3TtVZwoJq0IKfFJreMVB1Ho`);
     expect(res.statusCode).toBe(404);
   });
-});*/
+});
